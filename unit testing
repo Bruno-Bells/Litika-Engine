@@ -1,0 +1,88 @@
+import unittest
+import pickle
+import sys
+
+sys.path.append('..')
+
+from ... import raw
+
+class TestRBSDoc(unittest.TestCase):
+    def setUp(self):
+        with open('litika/tests/pickle_files/rbs.pkl', 'rb') as fd:
+            self.rbs_doc = pickle.load(fd)
+        # print(self.rbs_doc)
+        file_name = "pillar-3-RBS-18.pdf"
+        self.dict_list = raw.EBE_extractDict_v_1_0_0(file_name)
+
+    def test_page_one(self):
+        page_one_content = self.read_rbs(1)
+        self.assertListEqual(page_one_content, self.rbs_doc[0])
+
+    def test_page_three(self):
+        page_three_content = self.read_rbs(3)
+        self.assertListEqual(page_three_content, self.rbs_doc[2])
+
+    def test_page_seven(self):
+        page_seven_content = self.read_rbs(7)
+        self.assertListEqual(page_seven_content, self.rbs_doc[6])
+
+    def test_page_twelve(self):
+        page_twelve_content = self.read_rbs(12)
+        self.assertListEqual(page_twelve_content, self.rbs_doc[11])
+
+    def test_page_18(self):
+        page_18_content = self.read_rbs(18)
+        self.assertListEqual(page_18_content, self.rbs_doc[17])
+
+    def test_page_28(self):
+        page_28_content = self.read_rbs(28)
+        self.assertListEqual(page_28_content, self.rbs_doc[27])
+
+    def test_page_134(self):
+        page_134_content = self.read_rbs(134)
+        self.assertListEqual(page_134_content, self.rbs_doc[133])
+
+    def read_rbs(self, page_num):
+        doc_dict = self.dict_list[page_num-1]
+        width = doc_dict['width']
+        height = doc_dict['height']
+        content = raw.EBE_get_page_content_by_line_v_1_0_2(doc_dict)
+
+        content, header, footer = raw.EBE_get_headers_and_footers(content, height, width)
+
+        is_page_vertical = raw.EBE_check_if_page_content_vertical(content)
+
+        if is_page_vertical:
+            content_vertical_text = raw.EBE_sort_vertical_text(content, width, 1)
+            content = raw.EBE_merge_bbox3_misalignment(content_vertical_text)
+        else:
+            content = raw.EBE_seperate_multiline_content_v_1_0_0(content)
+
+            content = raw.EBE_cleanup_content_and_remove_blanks_v_1_0_0(content)
+
+            content = raw.EBE_cleanup_large_text_content_line_v_1_0_0(content)
+            content, num_of_columns, num_of_columns_under = raw.sort_content_v_1_0_0(content, width)
+
+            content = raw.split_misaligned_line(content)
+
+            content  = raw.EBE_split_initially_merge_column(content, num_of_columns)
+            content = raw.EBE_cleanup_content_and_remove_blanks_v_1_0_0(content)
+
+            sort0 = raw.EBE_sort_text(content, width, num_of_columns)
+            sort1 = raw.sorter(content)
+
+            content = raw.Sort_search_v_1(content,width,sort0,sort1)
+
+            content = raw.EBE_merge_bbox1_misalignment(content, num_of_columns, num_of_columns_under)
+
+            content, num_of_columns,num_of_columns_under = raw.sort_content_v_1_0_0(content, width)
+            content = raw.split_misaligned_line(content)
+            content = raw.EBE_sort_text(content, width, num_of_columns)
+            content = raw.EBE_merge_bbox1_misalignment(content,num_of_columns,num_of_columns_under)
+            content = raw.EBE_sort_text(content, width, num_of_columns)
+        content = raw.EBE_check_for_white_space_in_line(content)
+        content = raw.table_sort(content)
+        return content
+
+if __name__ == "__main__":
+    unittest.main()
